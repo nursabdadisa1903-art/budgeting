@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Daily Budgeting</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<style>
+:root{--bg:#f1f7f8;--card:#fff;--ink:#1f4e5a;--mut:#5f7d85;--hd:#8fb8bf;--ac:#4f8791;--line:#d5e3e6;--inp:#f7fbfc;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1b1e;--card:#172a2f;--ink:#d9eef2;--mut:#8fb0b8;--hd:#2c5964;--ac:#6fb1bd;--line:#2b444b;--inp:#10201f}}
+:root[data-theme="dark"]{--bg:#0f1b1e;--card:#172a2f;--ink:#d9eef2;--mut:#8fb0b8;--hd:#2c5964;--ac:#6fb1bd;--line:#2b444b;--inp:#10201f}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 "Segoe UI",Arial,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:16px}
+h1{margin:4px 0 14px;font-size:28px;letter-spacing:1px}
+h2{margin:0 0 10px;font-size:15px}
+.g{display:grid;gap:12px;margin-bottom:12px}
+.c5{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.c2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.card,.p{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.p{padding:14px}
+.card b.l{display:block;background:var(--hd);padding:8px;text-align:center;font-size:13px}
+.card .v{padding:12px 8px;text-align:center;font-weight:700;font-size:17px}
+.v input{width:100%;text-align:center;font:inherit;color:inherit;background:var(--inp);border:1px dashed var(--ac);border-radius:6px;padding:4px}
+.br{display:grid;grid-template-columns:130px 1fr auto;gap:8px;align-items:center;margin:6px 0;font-size:12px}
+.tr{background:var(--line);border-radius:4px;height:12px}.tr i{display:block;height:100%;background:var(--ac);border-radius:4px}
+.dn{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.ring{width:150px;height:150px;border-radius:50%;flex:none;-webkit-mask:radial-gradient(circle 44px,#0000 98%,#000);mask:radial-gradient(circle 44px,#0000 98%,#000);background:var(--line)}
+.lg{font-size:12px;flex:1;min-width:150px}.lg div{display:flex;gap:6px;align-items:center;margin:2px 0}.lg s{width:10px;height:10px;border-radius:2px;flex:none}
+form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+label{font-size:11px;color:var(--mut);display:flex;flex-direction:column;gap:2px}
+input,select,button{font:inherit;color:var(--ink);background:var(--inp);border:1px solid var(--line);border-radius:6px;padding:7px}
+button{background:var(--ac);color:#fff;border:0;cursor:pointer;font-weight:600}button.s{background:var(--inp);color:var(--ink);border:1px solid var(--line)}
+.tb{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}.tb h2{margin:0;flex:1}
+.w{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:760px}
+th{background:var(--hd);padding:8px;text-align:center;font-size:12px}td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:center;font-size:12px}
+td.k{text-align:left}td.n{text-align:right;white-space:nowrap}
+.ch{display:inline-block;padding:2px 9px;border-radius:99px;color:#1d2b2f;white-space:nowrap}
+.x{background:none;color:var(--mut);padding:2px 6px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}.tabs button{flex:1;min-width:120px;padding:10px;background:var(--card);color:var(--ink);border:1px solid var(--line)}.tabs button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.note{color:var(--mut);font-size:12px;margin-top:6px}
+</style>
+</head>
+<body>
+<main>
+<h1>DAILY BUDGETING <span id="ttl" style="color:var(--ac)"></span></h1>
+<nav class="tabs" id="tabs"></nav>
+<p class="note" id="all" style="margin:0 0 4px"></p>
+<p class="note" id="st" style="margin:0 0 12px">Menghubungkan ke penyimpanan…</p>
+<section class="p" id="auth" style="max-width:420px;margin:0 auto 12px" hidden>
+ <h2>Masuk untuk membuka budget-mu</h2>
+ <form onsubmit="return false"><label>Email<input id="em" type="email" autocomplete="username"></label><label>Password (min. 6 karakter)<input id="pw" type="password" autocomplete="current-password"></label>
+ <button id="in">Masuk</button><button class="s" id="up">Daftar akun baru</button></form>
+ <p class="note" id="am"></p>
+</section>
+<button class="s" id="lo" hidden style="margin-bottom:12px">Keluar</button>
+<div id="app" hidden>
+<section class="g c5">
+ <div class="card"><b class="l">Saldo Awal</b><div class="v"><input id="saldo" type="number" min="0" step="1000" aria-label="Saldo awal"></div></div>
+ <div class="card"><b class="l">Total Pemasukan</b><div class="v" id="inc"></div></div>
+ <div class="card"><b class="l">Total Pengeluaran</b><div class="v" id="out"></div></div>
+ <div class="card"><b class="l">Saldo saat ini</b><div class="v" id="bal"></div></div>
+ <div class="card"><b class="l">Pengeluaran vs Pemasukan</b><div class="v" id="ratio"></div></div>
+</section>
+<section class="g c2">
+ <div class="card"><b class="l">Kategori Pengeluaran Paling Boros</b><div class="v" id="topc"></div></div>
+ <div class="card"><b class="l">Sub-kategori Pengeluaran Terbesar</b><div class="v" id="tops"></div></div>
+</section>
+<section class="g c2">
+ <div class="p"><h2>Pengeluaran per Kategori</h2><div id="bars"></div></div>
+ <div class="p"><h2>Persentase per Kategori</h2><div class="dn"><div class="ring" id="ring"></div><div class="lg" id="lg"></div></div></div>
+ <div class="p"><h2>5 Sub-kategori Terbesar</h2><div id="subs"></div></div>
+ <div class="p"><h2>Per Prioritas</h2><div id="pri"></div></div>
+</section>
+<section class="p g" style="display:block;margin-bottom:12px">
+ <h2>Tambah transaksi</h2>
+ <form id="f">
+  <label>Tanggal<input type="date" id="d" required></label>
+  <label>Tipe<select id="t"><option>Pengeluaran</option><option>Pemasukan</option></select></label>
+  <label>Kategori<select id="k"></select></label>
+  <label>Sub-kategori<select id="s"></select></label>
+  <label>Prioritas<select id="pr"></select></label>
+  <label>Metode<select id="m"></select></label>
+  <label>Nominal (Rp)<input type="number" id="n" min="1" step="any" required></label>
+  <label>Keterangan<input id="e" maxlength="80" placeholder="mis. makan di warteg"></label>
+  <button type="submit" style="align-self:end">+ Tambah</button>
+ </form>
+</section>
+<section class="p">
+ <div class="tb"><h2>Transaksi</h2>
+  <select id="mo" aria-label="Filter bulan"></select>
+  <button class="s" id="csv">Ekspor CSV</button><button class="s" id="rst">Kosongkan semua</button></div>
+ <div class="w"><table><thead><tr><th>Tanggal</th><th>Tipe</th><th>Kategori</th><th>Sub-kategori</th><th>Prioritas</th><th>Metode</th><th>Nominal</th><th>Keterangan</th><th></th></tr></thead><tbody id="tb"></tbody></table></div>
+ <p class="note">Tiap budget (Kuliah, Jajan, Kerja) punya saldo dan transaksi sendiri. Data tersimpan di akun Supabase kamu (hanya bisa dibaca akunmu), jadi sama di semua perangkat setelah masuk. Total pemasukan/pengeluaran mengikuti filter bulan; Saldo saat ini menghitung semua transaksi. Data contoh bisa dihapus lewat "Kosongkan semua".</p>
+</section>
+</div>
+</main>
+<script>
+const CATS=["Pemasukan","Makanan & Minum","Transportasi","Internet","Kesehatan","Hiburan","Investasi","Tagihan Rutin","Hewan Peliharaan","Belanja","Pendidikan","Perawatan Diri","Donasi & Sosial","Lain-lain"];
+const SUBS=["Makan","Ngafe","Groceries","Jajan","Pulsa","Paket Data internet","Wifi","Langganan Streaming","Nonton Bioskop","Cilok","Buku","Skincare & Makeup","Garnier","Salon / Barbershop","Bensin","Ojek Online","Parkir","Tiket Transportasi","Bakso","Tagihan Listrik","Tagihan Air","Sewa / Kos","Cicilan","Obat","Dokter","Vitamin","Makanan Hewan","Dokter Hewan","Investasi Kecil","Reksadana","Emas","Tabungan","Dana Darurat","Sedekah","Hadiah","Gaji","Business","THR","Bonus","Uang Saku","Lain-lain"];
+const PRI=["High","Medium","Low"], MET=["Cash","E-Wallet","Qris","Transfer","Debit Card","Kartu Kredit"];
+const COL=["#c9e8c4","#e1ccf0","#cfdde6","#bfd9e2","#ffc999","#b9ecf5","#f5f07a","#c5d8e3","#ffc9a8","#f9d1e1","#d5e8b8","#e8d5f0","#ffe0b2","#dadada"];
+const PC={High:"#f8b9a5",Medium:"#ffe08a",Low:"#c7dff0"}, KEY="dailybudgeting.v2", BN=["Kuliah","Jajan","Kerja"];
+const $=s=>document.querySelector(s), rp=n=>"Rp"+Math.round(n).toLocaleString("id-ID");
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const pct=(v,t)=>(t?v/t*100:0).toFixed(1)+"%";
+const opts=a=>a.map(x=>`<option>${esc(x)}</option>`).join("");
+let DB=null;
+if(!DB){
+ const P="Pengeluaran",M="Pemasukan";
+ const ex=[[P,"Makanan & Minum","Makan","Medium","Cash",10000,"makan di warteg"],[P,"Internet","Pulsa","Low","Debit Card",20000,"beli pulsa untuk telepon"],[P,"Perawatan Diri","Skincare & Makeup","Medium","E-Wallet",30000,"sunscreen"],[P,"Hiburan","Nonton Bioskop","Low","Qris",50000,"nonton bareng pacar"],[M,"Pemasukan","Gaji","High","Transfer",2500000,"gaji bulan ini"],[P,"Tagihan Rutin","Tagihan Listrik","High","Transfer",150000,"token listrik"],[P,"Makanan & Minum","Ngafe","Low","Qris",70000,"ngafe bareng temen"],[P,"Hewan Peliharaan","Makanan Hewan","Medium","Cash",80000,"makanan si kucing"],[P,"Internet","Wifi","Medium","Transfer",200000,"wifi bulan ini"],[P,"Makanan & Minum","Jajan","Low","Cash",20000,"jajan"],[P,"Internet","Paket Data internet","Medium","E-Wallet",100000,"paket kuota"],[P,"Transportasi","Bensin","Medium","Cash",30000,"bensin"]];
+ const y=new Date().getFullYear();
+ const seed={saldo:1000000,tx:ex.map((r,i)=>({id:"x"+i,d:`${y}-01-${String(i+1).padStart(2,"0")}`,t:r[0],k:r[1],s:r[2],p:r[3],m:r[4],n:r[5],e:r[6]}))};
+ DB={cur:"Jajan",b:{Kuliah:{saldo:0,tx:[]},Jajan:seed,Kerja:{saldo:0,tx:[]}}};
+}
+let S=DB.b[DB.cur];
+const tot=b=>b.saldo+b.tx.reduce((a,r)=>a+(r.t=="Pemasukan"?r.n:-r.n),0);
+const SUPABASE_URL="https://YOUR-PROJECT.supabase.co", SUPABASE_ANON_KEY="YOUR-ANON-KEY";
+let sb=null,uid=null,tm=null;
+const stat=x=>{$("#st").textContent=x};
+const save=()=>{if(!uid)return;stat("Menyimpan…");clearTimeout(tm);
+ tm=setTimeout(async()=>{const{error}=await sb.from("budgets").upsert({user_id:uid,data:DB.b,updated_at:new Date().toISOString()});
+  stat(error?"Gagal menyimpan: "+error.message:"Tersimpan ✓")},500)};
+async function load(){const{data,error}=await sb.from("budgets").select("data").eq("user_id",uid).maybeSingle();
+ if(error){stat("Gagal memuat: "+error.message);return}
+ if(data&&data.data&&data.data.Jajan){DB.b=data.data;S=DB.b[DB.cur]||(DB.b[DB.cur]={saldo:0,tx:[]});render()}
+ stat(data?"Tersimpan ✓":"Tersambung (belum ada data tersimpan)")}
+const sum=(rows,key)=>{const o={};rows.forEach(r=>o[r[key]]=(o[r[key]]||0)+r.n);return Object.entries(o).sort((a,b)=>b[1]-a[1])};
+const bar=(arr,tot,w)=>arr.map(([k,v])=>`<div class="br"${w?` style="grid-template-columns:${w}"`:""}><span>${esc(k)}</span><div class="tr"><i style="width:${v/arr[0][1]*100}%"></i></div><b>${rp(v)} · ${pct(v,tot)}</b></div>`).join("")||'<p class="note">Belum ada pengeluaran.</p>';
+
+function render(){
+ $("#ttl").textContent="· "+DB.cur;
+ $("#tabs").innerHTML=BN.map(n=>`<button class="${n==DB.cur?"on":""}" data-b="${n}">${n}<br><small>${rp(tot(DB.b[n]))}</small></button>`).join("");
+ $("#all").textContent="Total saldo semua budget: "+rp(BN.reduce((a,n)=>a+tot(DB.b[n]),0));
+ const months=[...new Set(S.tx.map(r=>r.d.slice(0,7)))].sort().reverse(), cur=$("#mo").value||"all";
+ $("#mo").innerHTML='<option value="all">Semua bulan</option>'+months.map(m=>`<option value="${m}">${m}</option>`).join("");
+ $("#mo").value=months.includes(cur)?cur:"all";
+ const mo=$("#mo").value, rows=S.tx.filter(r=>mo=="all"||r.d.startsWith(mo));
+ const ex=rows.filter(r=>r.t=="Pengeluaran"), inc=rows.filter(r=>r.t=="Pemasukan").reduce((a,r)=>a+r.n,0), out=ex.reduce((a,r)=>a+r.n,0);
+ const all=S.tx.reduce((a,r)=>a+(r.t=="Pemasukan"?r.n:-r.n),0);
+ $("#saldo").value!=S.saldo&&($("#saldo").value=S.saldo);
+ $("#inc").textContent=rp(inc); $("#out").textContent=rp(out); $("#bal").textContent=rp(S.saldo+all); $("#ratio").textContent=pct(out,inc);
+ const bc=sum(ex,"k"), bs=sum(ex,"s");
+ $("#topc").textContent=bc[0]?bc[0][0]:"-"; $("#tops").textContent=bs[0]?bs[0][0]:"-";
+ $("#bars").innerHTML=bar(bc,out); $("#subs").innerHTML=bar(bs.slice(0,5),out);
+ $("#pri").innerHTML=bar(PRI.map(p=>[p,ex.filter(r=>r.p==p).reduce((a,r)=>a+r.n,0)]).sort((a,b)=>b[1]-a[1]),out);
+ let acc=0; const stops=bc.map(([k,v],i)=>{const c=COL[Math.max(1,CATS.indexOf(k))%COL.length],a=acc;acc+=v/out*100;return`${c} ${a}% ${acc}%`});
+ $("#ring").style.background=bc.length?`conic-gradient(${stops.join(",")})`:"var(--line)";
+ $("#lg").innerHTML=bc.map(([k,v])=>`<div><s style="background:${COL[Math.max(1,CATS.indexOf(k))%COL.length]}"></s>${esc(k)} <b>${pct(v,out)}</b></div>`).join("");
+ $("#tb").innerHTML=[...rows].sort((a,b)=>b.d.localeCompare(a.d)).map(r=>`<tr><td>${r.d}</td><td><span class="ch" style="background:${r.t=="Pemasukan"?"#c9e8c4":"#ffc9ce"}">${r.t}</span></td><td><span class="ch" style="background:${COL[CATS.indexOf(r.k)%COL.length]||"#ddd"}">${esc(r.k)}</span></td><td>${esc(r.s)}</td><td><span class="ch" style="background:${PC[r.p]}">${r.p}</span></td><td>${esc(r.m)}</td><td class="n">${rp(r.n)}</td><td class="k">${esc(r.e||"")}</td><td><button class="x" data-id="${r.id}" aria-label="Hapus">✕</button></td></tr>`).join("")||'<tr><td colspan="9">Belum ada transaksi.</td></tr>';
+}
+$("#k").innerHTML=opts(CATS); $("#s").innerHTML=opts(SUBS); $("#pr").innerHTML=opts(PRI); $("#m").innerHTML=opts(MET);
+$("#pr").value="Medium"; $("#d").value=new Date().toISOString().slice(0,10);
+$("#t").onchange=e=>{if(e.target.value=="Pemasukan")$("#k").value="Pemasukan"};
+$("#saldo").oninput=e=>{S.saldo=Math.max(0,+e.target.value||0);save();render()};
+$("#f").onsubmit=e=>{e.preventDefault();
+ S.tx.push({id:Date.now()+""+Math.random(),d:$("#d").value,t:$("#t").value,k:$("#k").value,s:$("#s").value,p:$("#pr").value,m:$("#m").value,n:Math.abs(+$("#n").value),e:$("#e").value.trim()});
+ $("#n").value="";$("#e").value="";save();render()};
+$("#tb").onclick=e=>{const id=e.target.dataset.id;if(id){S.tx=S.tx.filter(r=>r.id!=id);save();render()}};
+$("#mo").onchange=render;
+$("#tabs").onclick=e=>{const n=e.target.closest("button")?.dataset.b;if(n){DB.cur=n;S=DB.b[n];$("#mo").value="all";render()}};
+$("#rst").onclick=()=>{if(confirm("Hapus semua transaksi?")){S.tx=[];save();render()}};
+$("#csv").onclick=()=>{
+ const q=v=>`"${String(v).replace(/"/g,'""')}"`, h=["Tanggal","Tipe","Kategori","Sub-kategori","Prioritas","Metode","Nominal","Keterangan"];
+ const t=[h,...S.tx.map(r=>[r.d,r.t,r.k,r.s,r.p,r.m,r.n,r.e||""])].map(r=>r.map(q).join(",")).join("\n");
+ const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+t],{type:"text/csv"}));a.download="daily-budgeting-"+DB.cur.toLowerCase()+".csv";a.click()};
+render();
+if(SUPABASE_URL.includes("YOUR-PROJECT")){stat("Isi SUPABASE_URL dan SUPABASE_ANON_KEY dulu (lihat README.md)")}
+else{
+ sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+ const enter=async s=>{const on=!!(s&&s.user);uid=on?s.user.id:null;
+  $("#auth").hidden=on;$("#app").hidden=!on;$("#lo").hidden=!on;
+  if(on)await load();else stat("Silakan masuk")};
+ sb.auth.onAuthStateChange((ev,s)=>{if(["INITIAL_SESSION","SIGNED_IN","SIGNED_OUT"].includes(ev))setTimeout(()=>enter(s),0)});
+ const cred=()=>({email:$("#em").value.trim(),password:$("#pw").value});
+ $("#in").onclick=async()=>{const{error}=await sb.auth.signInWithPassword(cred());$("#am").textContent=error?error.message:""};
+ $("#up").onclick=async()=>{const{data,error}=await sb.auth.signUp(cred());$("#am").textContent=error?error.message:(data.session?"":"Cek email untuk konfirmasi, lalu masuk.")};
+ $("#lo").onclick=()=>sb.auth.signOut();
+ document.addEventListener("visibilitychange",()=>{if(!document.hidden&&uid&&!tm)load()});
+}
+</script>
+</body>
+</html>
